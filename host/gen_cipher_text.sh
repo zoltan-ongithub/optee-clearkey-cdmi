@@ -1,0 +1,1 @@
+openssl enc -aes-128-ctr -in plaintext2.in -out ciphertext2.bin -K 000102030405060708090A0B0C0D0E0F -iv 00000000000000000000000000000001
