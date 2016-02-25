@@ -40,7 +40,7 @@ TEE_crypto_init();
 int
 TEE_AES_ctr128_encrypt(const unsigned char* in_data,
     unsigned char* out_data,
-    size_t length, const char* key,
+    uint32_t length, const char* key,
     unsigned char iv[CTR_AES_BLOCK_SIZE],
     unsigned char ecount_buf[CTR_AES_BLOCK_SIZE],
     unsigned int *num);

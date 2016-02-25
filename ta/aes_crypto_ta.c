@@ -81,9 +81,9 @@ void TA_CloseSessionEntryPoint(void *sess_ctx)
 }
 
 /* Decrypt chunk of data */
-static TEE_Result decrypt_128_ctr_aes(void *in, size_t sz, /*input buffer and size */
-        void *out, size_t *outsz, /*output buffer and size */
-        uint8_t* aes_key, size_t aes_key_size, /* AES key */
+static TEE_Result decrypt_128_ctr_aes(void *in, uint32_t sz, /*input buffer and size */
+        void *out, uint32_t *outsz, /*output buffer and size */
+        uint8_t* aes_key, uint32_t aes_key_size, /* AES key */
         uint8_t* iv, uint8_t iv_size /*AES IV */
     )
 {
@@ -125,7 +125,7 @@ static TEE_Result aes_Ctr128_Encrypt(uint32_t param_types, TEE_Param params[4])
 {
   TEE_Result res;
   void *buf, *outbuf, *iv, *key;
-  size_t sz, outsz,  iv_size, key_size;
+  uint32_t sz, outsz,  iv_size, key_size;
 
   uint32_t exp_param_types = AES_CTR128_ENCRYPT_TEE_PARAM_TYPES;
 

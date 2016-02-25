@@ -124,9 +124,9 @@ static void free_mem(void)
   TEEC_ReleaseSharedMemory(&g_outm);
 }
 
-static size_t commit_buffer_tee_aes_ctr128_decrypt(size_t sz,  const void* iv,
-    size_t iv_size,
-    const char* key, size_t key_size, int flags)
+static uint32_t commit_buffer_tee_aes_ctr128_decrypt(uint32_t sz,  const void* iv,
+    uint32_t iv_size,
+    const char* key, uint32_t key_size, int flags)
 {
   TEEC_Result res;
   TEEC_Operation op;
@@ -174,14 +174,13 @@ static size_t commit_buffer_tee_aes_ctr128_decrypt(size_t sz,  const void* iv,
 int
 TEE_AES_ctr128_encrypt(const unsigned char* in_data,
     unsigned char* out_data,
-    size_t length, const char* key,
+    uint32_t length, const char* key,
     unsigned char iv[CTR_AES_BLOCK_SIZE],
     unsigned char ecount_buf[CTR_AES_BLOCK_SIZE],
     unsigned int *num) {
 
-  size_t offset = 0;
-  size_t decode_buffer_lenght = 0;
-  hex_print(in_data, 20);
+  uint32_t offset = 0;
+  uint32_t decode_buffer_lenght = 0;
   while(offset < length) {
     decode_buffer_lenght = MIN(g_outm.size,  length - offset);
     /* FIXME: we should avoid a memcpy here if possible.
@@ -194,7 +193,6 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
         iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
 
     memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
-    hex_print(g_outm.buffer, 20);
     offset += decode_buffer_lenght;
   }
   return 0;
