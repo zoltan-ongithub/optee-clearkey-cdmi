@@ -68,12 +68,12 @@ static TEEC_Context ctx;
 static TEEC_Session sess;
 
 static TEEC_SharedMemory g_shm = {
-  .size =  1024*CTR_AES_BLOCK_SIZE , /* The Chuck Norris Constant Value */
+  .size =  24*1024*CTR_AES_BLOCK_SIZE , /* The Chuck Norris Constant Value */
   .flags = TEEC_MEM_INPUT,
 };
 
 static TEEC_SharedMemory g_outm = {
-  .size =  1024*CTR_AES_BLOCK_SIZE , /* The Chuck Norris Constant Value */
+  .size =  24*1024*CTR_AES_BLOCK_SIZE , /* The Chuck Norris Constant Value */
   .flags = TEEC_MEM_OUTPUT,
 };
 
@@ -181,20 +181,24 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
 
   uint32_t offset = 0;
   uint32_t decode_buffer_lenght = 0;
-  while(offset < length) {
-    decode_buffer_lenght = MIN(g_outm.size,  length - offset);
-    /* FIXME: we should avoid a memcpy here if possible.
-     * To achieve that the OP TEE allocated buffer needs to be exposed outside
-     * this library.
-     */
-    memcpy(g_shm.buffer, in_data + offset, decode_buffer_lenght);
 
-    commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght,
-        iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
+  if(length > g_outm.size) {
+    PR("Error. Input buffer is %d too large. We don't support decryption by chunks\n",  length);
+    return -1;
+   }
 
-    memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
-    offset += decode_buffer_lenght;
-  }
+  decode_buffer_lenght = MIN(g_outm.size,  length - offset);
+  /* FIXME: we should avoid a memcpy here if possible.
+   * To achieve that the OP TEE allocated buffer needs to be exposed outside
+   * this library.
+   */
+  memcpy(g_shm.buffer, in_data + offset, decode_buffer_lenght);
+
+  commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght,
+      iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
+
+  memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
+  offset += decode_buffer_lenght;
   return 0;
 }
 
