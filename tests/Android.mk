@@ -22,6 +22,8 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := Tee_aes_UnitTest
 LOCAL_MODULE_TAGS := tests
 
+LOCAL_CFLAGS += -DUSE_AES_TA
+
 LOCAL_SRC_FILES := \
     AesCtrDecryptorUnittest.cpp 
 
@@ -34,6 +36,7 @@ LOCAL_SHARED_LIBRARIES := \
     liblog \
     libstagefright_foundation \
     libutils \
+    libcrypto \
     libtee_aes
 
 include $(BUILD_NATIVE_TEST)

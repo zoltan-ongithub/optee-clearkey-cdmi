@@ -22,12 +22,17 @@
 #include <utils/Vector.h>
 #include <utils/KeyedVector.h>
 
+#ifndef USE_AES_TA
+#include <openssl/aes.h>
+#include <openssl/evp.h>
+#else
 extern "C" {
 #include "aes_crypto.h"
 }
 
 /* Map between OP TEE TA and OpenSSL */
 #define AES_BLOCK_SIZE CTR_AES_BLOCK_SIZE
+#endif
 
 namespace clearkeydrm {
 
@@ -36,6 +41,8 @@ using namespace android;
 const uint8_t kBlockSize = AES_BLOCK_SIZE;
 typedef uint8_t KeyId[kBlockSize];
 typedef uint8_t Iv[kBlockSize];
+
+static const size_t kBlockBitCount = kBlockSize * 8;
 
 typedef android::CryptoPlugin::SubSample SubSample;
 
@@ -62,6 +69,11 @@ class AesCtrDecryptorTest : public ::testing::Test {
     size_t offset = 0;
     Iv opensslIv;
 
+#ifndef USE_AES_TA
+  AES_KEY aes_key;
+  AES_set_encrypt_key(keyVector.array(), kBlockBitCount, &aes_key);
+#endif
+
     memcpy(opensslIv, iv, sizeof(opensslIv));
 
     for (size_t i = 0; i < numSubSamples; ++i) {
@@ -74,10 +86,17 @@ class AesCtrDecryptorTest : public ::testing::Test {
         }
 
         if (subSample.mNumBytesOfEncryptedData > 0) {
-            TEE_AES_ctr128_encrypt(source + offset, destination + offset,
-                    subSample.mNumBytesOfEncryptedData, (const char *)keyVector.array(),
+#ifndef USE_AES_TA
+            AES_ctr128_encrypt(source + offset, destination + offset,
+                    subSample.mNumBytesOfEncryptedData, &aes_key,
                     opensslIv, previousEncryptedCounter,
                     &blockOffset);
+#else
+            TEE_AES_ctr128_encrypt(source + offset, destination + offset,
+                    subSample.mNumBytesOfEncryptedData, (const char*)keyVector.array(),
+                    opensslIv, previousEncryptedCounter,
+                    &blockOffset);
+#endif
             offset += subSample.mNumBytesOfEncryptedData;
         }
     }
@@ -143,13 +162,14 @@ TEST_F(AesCtrDecryptorTest, DecryptsContiguousEncryptedBlock) {
     SubSample subSamples[kNumSubsamples] = {
         {0, 64}
     };
-
+#ifdef USE_AES_TA
     TEE_crypto_init();
-
+#endif
     attemptDecryptExpectingSuccess<kTotalSize>(key, iv, encrypted, decrypted,
                                                subSamples, kNumSubsamples);
-
+#ifdef USE_AES_TA
     TEE_crypto_close();
+#endif
 }
 
 TEST_F(AesCtrDecryptorTest, DecryptsAlignedBifurcatedEncryptedBlock) {
@@ -193,11 +213,14 @@ TEST_F(AesCtrDecryptorTest, DecryptsAlignedBifurcatedEncryptedBlock) {
         {0, 32},
         {0, 32}
     };
-
+#ifdef USE_AES_TA
     TEE_crypto_init();
+#endif
     attemptDecryptExpectingSuccess<kTotalSize>(key, iv, encrypted, decrypted,
-                                               subSamples, kNumSubsamples);
+                                             subSamples, kNumSubsamples);
+#ifdef USE_AES_TA  
     TEE_crypto_close();
+#endif
 }
 
 TEST_F(AesCtrDecryptorTest, DecryptsUnalignedBifurcatedEncryptedBlock) {
@@ -241,11 +264,14 @@ TEST_F(AesCtrDecryptorTest, DecryptsUnalignedBifurcatedEncryptedBlock) {
         {0, 29},
         {0, 35}
     };
-
+#ifdef USE_AES_TA
     TEE_crypto_init();
+#endif
     attemptDecryptExpectingSuccess<kTotalSize>(key, iv, encrypted, decrypted,
                                                subSamples, kNumSubsamples);
+#ifdef USE_AES_TA
     TEE_crypto_close();
+#endif
 }
 
 TEST_F(AesCtrDecryptorTest, DecryptsOneMixedSubSample) {
@@ -292,11 +318,14 @@ TEST_F(AesCtrDecryptorTest, DecryptsOneMixedSubSample) {
     SubSample subSamples[kNumSubsamples] = {
         {8, 64}
     };
-
+#ifdef USE_AES_TA
     TEE_crypto_init();
+#endif
     attemptDecryptExpectingSuccess<kTotalSize>(key, iv, encrypted, decrypted,
                                                subSamples, kNumSubsamples);
+#ifdef USE_AES_TA
     TEE_crypto_close();
+#endif
 }
 
 TEST_F(AesCtrDecryptorTest, DecryptsAlignedMixedSubSamples) {
@@ -348,11 +377,14 @@ TEST_F(AesCtrDecryptorTest, DecryptsAlignedMixedSubSamples) {
         {8, 32},
         {8, 32}
     };
-
+#ifdef USE_AES_TA
     TEE_crypto_init();
+#endif
     attemptDecryptExpectingSuccess<kTotalSize>(key, iv, encrypted, decrypted,
                                                subSamples, kNumSubsamples);
+#ifdef USE_AES_TA
     TEE_crypto_close();
+#endif
 }
 
 TEST_F(AesCtrDecryptorTest, DecryptsUnalignedMixedSubSamples) {
@@ -405,11 +437,14 @@ TEST_F(AesCtrDecryptorTest, DecryptsUnalignedMixedSubSamples) {
         {8, 30},
         {8, 34}
     };
-
+#ifdef USE_AES_TA
     TEE_crypto_init();
+#endif
     attemptDecryptExpectingSuccess<kTotalSize>(key, iv, encrypted, decrypted,
                                                subSamples, kNumSubsamples);
+#ifdef USE_AES_TA
     TEE_crypto_close();
+#endif
 }
 
 TEST_F(AesCtrDecryptorTest, DecryptsComplexMixedSubSamples) {
@@ -473,11 +508,14 @@ TEST_F(AesCtrDecryptorTest, DecryptsComplexMixedSubSamples) {
         {3, 14},
         {2, 0}
     };
-
+#ifdef USE_AES_TA
     TEE_crypto_init();
+#endif
     attemptDecryptExpectingSuccess<kTotalSize>(key, iv, encrypted, decrypted,
                                                subSamples, kNumSubsamples);
+#ifdef USE_AES_TA
     TEE_crypto_close();
+#endif
 }
 
 }  // namespace clearkeydrm
