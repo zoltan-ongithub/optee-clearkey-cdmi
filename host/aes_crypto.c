@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <endian.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <err.h>
@@ -124,6 +125,15 @@ static void free_mem(void)
   TEEC_ReleaseSharedMemory(&g_outm);
 }
 
+/* increment counter (128-bit int) */
+static void ctr128_inc(uint8_t *counter, uint32_t increment)
+{
+  uint16_t *c = (uint16_t *)(counter + 14);
+
+  (*c) = htobe16(htobe16(*c) + increment);
+
+}
+
 static uint32_t commit_buffer_tee_aes_ctr128_decrypt(uint32_t sz,  const void* iv,
     uint32_t iv_size,
     const char* key, uint32_t key_size, int flags)
@@ -181,6 +191,20 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
 
   uint32_t offset = 0;
   uint32_t decode_buffer_lenght = 0;
+  uint32_t n = 0;
+   uint32_t blockOffset = *num;
+   uint32_t len = length;
+#if 0
+  while (blockOffset && len) {
+    --len;
+    blockOffset = (blockOffset + 1) % 16;
+  }
+#endif
+  if(blockOffset > 0)
+  {
+    memcpy(g_shm.buffer, ecount_buf, blockOffset);
+    //offset = CTR_AES_BLOCK_SIZE - blockOffset;
+  }
 
   if(length > g_outm.size) {
     PR("Error. Input buffer is %d too large. We don't support decryption by chunks\n",  length);
@@ -192,13 +216,53 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
    * To achieve that the OP TEE allocated buffer needs to be exposed outside
    * this library.
    */
-  memcpy(g_shm.buffer, in_data + offset, decode_buffer_lenght);
+  if(blockOffset > 0) {
+    memcpy(g_shm.buffer + blockOffset , in_data , decode_buffer_lenght);
 
-  commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght,
+    commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght + blockOffset,
       iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
+    memcpy(out_data , g_outm.buffer + blockOffset, decode_buffer_lenght);
+    if(decode_buffer_lenght + blockOffset > 16)
+      len = decode_buffer_lenght + blockOffset;
+  } else{
+    memcpy(g_shm.buffer , in_data + offset, decode_buffer_lenght);
+    commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght,
+      iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
+    memcpy(out_data , g_outm.buffer, decode_buffer_lenght);
+  }
+  
 
-  memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
-  offset += decode_buffer_lenght;
+  //blockOffset = length % CTR_AES_BLOCK_SIZE;
+  //*num += blockOffset;
+
+  while (len >= 16) {
+    ctr128_inc(iv, 1);
+    blockOffset = 0;
+    len -= 16;
+    n++;
+  }
+
+  if (len) {
+       while (len--) {
+        ++blockOffset;
+      }
+
+    memcpy(ecount_buf, in_data + n*CTR_AES_BLOCK_SIZE, blockOffset);
+  }
+  *num = blockOffset;
+#if 0
+  n = length / CTR_AES_BLOCK_SIZE;
+
+  if(n == 0 && *num == 0)
+    ctr128_inc(iv, 1);
+  else {
+    ctr128_inc(iv, n);
+  }
+#endif
+
+  //memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
+  //offset += decode_buffer_lenght;
+  ;
   return 0;
 }
 
@@ -239,5 +303,6 @@ TEE_crypto_close() {
 
   TEEC_CloseSession(&sess);
   TEEC_FinalizeContext(&ctx);
+
   return TEEC_SUCCESS;
 }
