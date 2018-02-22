@@ -25,7 +25,6 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <endian.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <err.h>
@@ -125,15 +124,6 @@ static void free_mem(void)
   TEEC_ReleaseSharedMemory(&g_outm);
 }
 
-/* increment counter (128-bit int) */
-static void ctr128_inc(uint8_t *counter, uint32_t increment)
-{
-  uint16_t *c = (uint16_t *)(counter + 14);
-
-  (*c) = htobe16(htobe16(*c) + increment);
-
-}
-
 static uint32_t commit_buffer_tee_aes_ctr128_decrypt(uint32_t sz,  const void* iv,
     uint32_t iv_size,
     const char* key, uint32_t key_size, int flags)
@@ -191,14 +181,6 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
 
   uint32_t offset = 0;
   uint32_t decode_buffer_lenght = 0;
-  uint32_t n = 0;
-   uint32_t blockOffset = *num;
-   uint32_t len = length;
-
-  while (blockOffset && len) {
-    --len;
-    blockOffset = (blockOffset + 1) % 16;
-  }
 
   if(length > g_outm.size) {
     PR("Error. Input buffer is %d too large. We don't support decryption by chunks\n",  length);
@@ -215,35 +197,8 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght,
       iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
 
-  //blockOffset = length % CTR_AES_BLOCK_SIZE;
-  //*num += blockOffset;
-
-  while (len >= 16) {
-    ctr128_inc(iv, 1);
-    blockOffset = 0;
-    len -= 16;
-  }
-
-  if (len) {
-    ctr128_inc(iv, 1);
-       while (len--) {
-        ++blockOffset;
-      }
-  }
-  *num = blockOffset;
-#if 0
-  n = length / CTR_AES_BLOCK_SIZE;
-
-  if(n == 0 && *num == 0)
-    ctr128_inc(iv, 1);
-  else {
-    ctr128_inc(iv, n);
-  }
-#endif
-
   memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
   offset += decode_buffer_lenght;
-  ;
   return 0;
 }
 
