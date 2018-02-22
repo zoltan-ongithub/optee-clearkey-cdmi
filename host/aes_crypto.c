@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 
+#include <endian.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <err.h>
@@ -97,21 +98,21 @@ static void allocate_mem(void)
 
 }
 
+/* increment counter (128-bit int) */
+static void ctr128_inc(uint8_t *counter, uint32_t increment)
+{
+  uint16_t *c = (uint16_t *)(counter + 14);
+
+  (*c) = htobe16(htobe16(*c) + increment);
+
+}
+
 static void free_mem(void)
 {
   PR("Release IV shared memory...\n");
   TEEC_ReleaseSharedMemory(&g_iv);
   PR("Release key shared memory...\n");
   TEEC_ReleaseSharedMemory(&g_key);
-}
-
-static uint32_t commit_buffer_tee_aes_ctr128_decrypt(uint32_t sz,  const void* iv,
-    uint32_t iv_size,
-    const char* key, uint32_t key_size, int flags, uint32_t offset, bool secure)
-{
-  TEEC_Result res;
-
-  return sz;
 }
 
 /* Decrypt buffer */
@@ -129,16 +130,22 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   int secure_fd = -1;
   TEEC_Operation op;
   uint32_t err_origin;
+  uint32_t n = 0;
+  uint32_t blockOffset = *num;
+  uint32_t len = length;
 
   if (!key || !out_data || !num || !iv)
     return 0;
+
+  if (blockOffset > 0)
+    memcpy(in_data + offset - blockOffset, ecount_buf, blockOffset);
 
   if (secure) {
     /* extract fd */
     secure_fd = clearkey_plat_get_mem_fd((void *)out_data);
 
 #ifdef SDP_PROTOTYPE
-    secure_fd = allocate_ion_buffer(length, ION_HEAP_TYPE_UNMAPPED);
+    secure_fd = allocate_ion_buffer(length + blockOffset, ION_HEAP_TYPE_UNMAPPED);
 #endif
 
     //g_outm.size = length;
@@ -163,17 +170,26 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   }
 
   /* TA input buffer */
-  op.params[PARAM_AES_ENCRYPTED_BUFFER_IDX].tmpref.buffer = (void *) in_data + offset;;
-  op.params[PARAM_AES_ENCRYPTED_BUFFER_IDX].tmpref.size = length;
-  /* TA output buffer */
+  op.params[PARAM_AES_ENCRYPTED_BUFFER_IDX].tmpref.buffer =
+    (void *) (in_data + offset - blockOffset);
 
+  op.params[PARAM_AES_ENCRYPTED_BUFFER_IDX].tmpref.size =
+    length + blockOffset;
+
+  /* TA output buffer */
   if (!secure) {
-    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].tmpref.buffer = (void *) out_data + offset;
-    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].tmpref.size = length;
+    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].tmpref.buffer =
+      (void *) (out_data + offset - blockOffset);
+
+    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].tmpref.size =
+      length + blockOffset;
   } else {
     op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].memref.parent = &g_outm;
-    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].memref.size = length;
-    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].memref.offset = offset;
+    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].memref.size =
+      length + blockOffset;
+
+    op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].memref.offset =
+      offset - blockOffset;
 #ifdef SDP_PROTOTYPE
     op.params[PARAM_AES_DECRYPTED_BUFFER_IDX].memref.offset = 0;
 #endif
@@ -191,9 +207,27 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   CHECK_INVOKE(res, err_origin);
 
 #ifdef SDP_PROTOTYPE
-  ion_map_and_memcpy(out_data + offset, length, secure_fd);
+  ion_map_and_memcpy(out_data + offset - blockOffset, length + blockOffset, secure_fd);
   close(secure_fd);
 #endif
+
+  if(length + blockOffset > 16)
+    len = length + blockOffset;
+
+  while (len >= 16) {
+    ctr128_inc(iv, 1);
+    blockOffset = 0;
+    len -= 16;
+    n++;
+  }
+
+  if (len) {
+    while (len--) {
+      ++blockOffset;
+    }
+    memcpy(ecount_buf, in_data + offset + n*CTR_AES_BLOCK_SIZE, blockOffset);
+  }
+  *num = blockOffset;
 
   if (secure)
     TEEC_ReleaseSharedMemory(&g_outm);
