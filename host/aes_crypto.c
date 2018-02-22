@@ -194,16 +194,10 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   uint32_t n = 0;
    uint32_t blockOffset = *num;
    uint32_t len = length;
-#if 0
+
   while (blockOffset && len) {
     --len;
     blockOffset = (blockOffset + 1) % 16;
-  }
-#endif
-  if(blockOffset > 0)
-  {
-    memcpy(g_shm.buffer, ecount_buf, blockOffset);
-    //offset = CTR_AES_BLOCK_SIZE - blockOffset;
   }
 
   if(length > g_outm.size) {
@@ -216,21 +210,10 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
    * To achieve that the OP TEE allocated buffer needs to be exposed outside
    * this library.
    */
-  if(blockOffset > 0) {
-    memcpy(g_shm.buffer + blockOffset , in_data , decode_buffer_lenght);
+  memcpy(g_shm.buffer, in_data + offset, decode_buffer_lenght);
 
-    commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght + blockOffset,
+  commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght,
       iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
-    memcpy(out_data , g_outm.buffer + blockOffset, decode_buffer_lenght);
-    if(decode_buffer_lenght + blockOffset > 16)
-      len = decode_buffer_lenght + blockOffset;
-  } else{
-    memcpy(g_shm.buffer , in_data + offset, decode_buffer_lenght);
-    commit_buffer_tee_aes_ctr128_decrypt( decode_buffer_lenght,
-      iv, CTR_AES_IV_SIZE,  key, CTR_AES_KEY_SIZE, 0);
-    memcpy(out_data , g_outm.buffer, decode_buffer_lenght);
-  }
-  
 
   //blockOffset = length % CTR_AES_BLOCK_SIZE;
   //*num += blockOffset;
@@ -239,15 +222,13 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
     ctr128_inc(iv, 1);
     blockOffset = 0;
     len -= 16;
-    n++;
   }
 
   if (len) {
+    ctr128_inc(iv, 1);
        while (len--) {
         ++blockOffset;
       }
-
-    memcpy(ecount_buf, in_data + n*CTR_AES_BLOCK_SIZE, blockOffset);
   }
   *num = blockOffset;
 #if 0
@@ -260,8 +241,8 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   }
 #endif
 
-  //memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
-  //offset += decode_buffer_lenght;
+  memcpy(out_data + offset , g_outm.buffer, decode_buffer_lenght);
+  offset += decode_buffer_lenght;
   ;
   return 0;
 }
@@ -303,6 +284,5 @@ TEE_crypto_close() {
 
   TEEC_CloseSession(&sess);
   TEEC_FinalizeContext(&ctx);
-
   return TEEC_SUCCESS;
 }
