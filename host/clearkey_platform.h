@@ -34,6 +34,6 @@
 int clearkey_plat_get_mem_fd(void *mem_handle);
 #ifdef SDP_PROTOTYPE
 int allocate_ion_buffer(size_t size, int heap_id);
-int ion_map_and_memcpy(unsigned char* out_data, uint32_t length, int secure_fd);
+int ion_map_and_memcpy(unsigned char* out_data, uint32_t length, int secure_fd, uint32_t blockOffset);
 #endif
 #endif

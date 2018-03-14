@@ -208,7 +208,7 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   CHECK_INVOKE(res, err_origin);
 
 #ifdef SDP_PROTOTYPE
-  ion_map_and_memcpy(out_data + offset - blockOffset, length + blockOffset, secure_fd);
+  ion_map_and_memcpy(out_data + offset, length, secure_fd, blockOffset);
   close(secure_fd);
 #endif
 
@@ -287,7 +287,7 @@ int TEE_copy_secure_memory(const unsigned char* out_data, const unsigned char* i
 
 #ifdef SDP_PROTOTYPE
   /* sdp_protoype test code assumes memory isn't actually secure */
-  ion_map_and_memcpy(out_data + offset, length, secure_fd);
+  ion_map_and_memcpy(out_data + offset, length, secure_fd, 0);
   close(secure_fd);
 #endif
 
