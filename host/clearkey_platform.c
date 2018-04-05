@@ -109,7 +109,10 @@ out:
 	return fd;
 }
 
-int ion_map_and_memcpy(unsigned char* out_data, uint32_t length, int secure_fd)
+int ion_map_and_memcpy(unsigned char* out_data,
+                uint32_t length,
+                int secure_fd,
+                uint32_t blockOffset)
 {
   /* To allow prototyping SDP, map the secure buffer
      (it is not actually protected) and copy data into the destination
@@ -140,7 +143,7 @@ int ion_map_and_memcpy(unsigned char* out_data, uint32_t length, int secure_fd)
     goto error2;
   }
 
-  memcpy(out_data, mapped_secure_buf, length);
+  memcpy(out_data, mapped_secure_buf + blockOffset, length);
   munmap(mapped_secure_buf, length);
   close(map_fd);
 
