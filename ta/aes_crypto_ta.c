@@ -161,6 +161,8 @@ static TEE_Result aes_Ctr128_Encrypt(uint32_t param_types, TEE_Param params[4])
     EMSG("%s: buffer too short\n", __func__);
     return TEE_ERROR_SHORT_BUFFER;
   }
+
+#ifdef CFG_SECURE_DATA_PATH
   /* Validate that the destination buffer is actually in secure memory.
    * This is mandatory to protect against a malicious REE application
    * sending a shared (non-secure) memory buffer but identifying it as
@@ -171,8 +173,18 @@ static TEE_Result aes_Ctr128_Encrypt(uint32_t param_types, TEE_Param params[4])
 
   if (res != TEE_SUCCESS) {
     EMSG("%s: WARNING: output buffer is not in secure memory", __func__);
-    /* return TEE_ERROR_SECURITY;*/
+    return TEE_ERROR_SECURITY;
   }
+#else
+  res = TEE_CheckMemoryAccessRights(TEE_MEMORY_ACCESS_ANY_OWNER |
+				    TEE_MEMORY_ACCESS_WRITE,
+				    outbuf, outsz);
+
+  if (res != TEE_SUCCESS) {
+    EMSG("%s: WARNING: output buffer is not writeable", __func__);
+    return TEE_ERROR_ACCESS_DENIED;
+  }
+#endif
 
   res = TEE_CacheFlush((char *)outbuf, outsz);
   CHECK(res, "TEE_CacheFlush", return res;);
@@ -223,6 +235,7 @@ static TEE_Result copy_secure_memory(uint32_t param_types, TEE_Param params[4])
     return TEE_ERROR_BAD_FORMAT;
   }
 
+#ifdef CFG_SECURE_DATA_PATH
   /* Validate that the destination buffer is actually in secure memory.
    * This is mandatory to protect against a malicious REE application
    * sending a shared (non-secure) memory buffer but identifying it as
@@ -233,8 +246,18 @@ static TEE_Result copy_secure_memory(uint32_t param_types, TEE_Param params[4])
 
   if (res != TEE_SUCCESS) {
     EMSG("%s: WARNING: output buffer is not in secure memory", __func__);
-    /*return TEE_ERROR_SECURITY;*/
+    return TEE_ERROR_SECURITY;
   }
+#else
+  res = TEE_CheckMemoryAccessRights(TEE_MEMORY_ACCESS_ANY_OWNER |
+				    TEE_MEMORY_ACCESS_WRITE,
+				    outbuf, outsz);
+
+  if (res != TEE_SUCCESS) {
+    EMSG("%s: WARNING: output buffer is not writeable", __func__);
+    return TEE_ERROR_ACCESS_DENIED;
+  }
+#endif
 
   res = TEE_CacheFlush((char *)outbuf, outsz);
   CHECK(res, "TEE_CacheFlush", return res;);

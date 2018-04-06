@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <err.h>
+#include <errno.h>
 #include <assert.h>
 #include <string.h>
 #include <sys/types.h>
@@ -71,9 +72,6 @@
 
 static TEEC_Context ctx;
 static TEEC_Session sess;
-
-static TEEC_SharedMemory g_shm;
-static TEEC_SharedMemory g_outm;
 
 static TEEC_SharedMemory g_key = {
   .size = CTR_AES_BLOCK_SIZE, /* 16byte key */
@@ -134,9 +132,10 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   uint32_t n = 0;
   uint32_t blockOffset = *num;
   uint32_t len = length;
+  TEEC_SharedMemory g_outm;
 
   if (!key || !out_data || !num || !iv)
-    return 0;
+    return EINVAL;
 
   if (blockOffset > 0)
     memcpy(in_data + offset - blockOffset, ecount_buf, blockOffset);
@@ -236,16 +235,15 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
   return 0;
 }
 
-int TEE_copy_secure_memory(const unsigned char* out_data, const unsigned char* in_data,
+int TEE_copy_secure_memory(const unsigned char* in_data, unsigned char* out_data,
 			   uint32_t length, uint32_t offset)
 {
   int secure_fd = -1;
   TEEC_Operation op;
   TEEC_Result res;
   uint32_t err_origin;
-
-  memset(&g_shm, 0, sizeof(TEEC_SharedMemory));
-  memset(&g_outm, 0, sizeof(TEEC_SharedMemory));
+  TEEC_SharedMemory g_shm;
+  TEEC_SharedMemory g_outm;
 
   g_shm.size = length;
   g_shm.buffer = (void *) (in_data + offset);

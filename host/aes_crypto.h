@@ -50,8 +50,8 @@ TEE_AES_ctr128_encrypt(const unsigned char* in_data,
     bool secure);
 
 /* Copy from source buffer to secure dest buffer */
-int TEE_copy_secure_memory(const unsigned char* out_data,
-    const unsigned char* in_data,
+int TEE_copy_secure_memory(const unsigned char* in_data,
+    unsigned char* out_data,
     uint32_t length,
     uint32_t offset);
 
