@@ -1,6 +1,7 @@
 
-AES_CRYPTO_OBJS = aes_crypto.o
-AES_CRYPTO_SOURCES = aes_crypto.c clearkey_platform.c
+AES_CRYPTO_OBJS = aes_crypto.o clearkey_platform.o
+AES_CRYPTO_SOURCES = aes_crypto.c
+AES_PLATFORM_SOURCES =  clearkey_platform.c
 CFG_TEE_TA_LOG_LEVEL ?= 3
 AES_CRYPTO_CPPFLAGS += -DCFG_TEE_TA_LOG_LEVEL=$(CFG_TEE_TA_LOG_LEVEL) -DCFG_TRACE_LEVEL=3
 
@@ -19,7 +20,12 @@ all:  aes_crypto
 aes_crypto.o:
 	@echo Building aes_crypto
 	$(CC) $(AES_CRYPTO_CPPFLAGS) $(AES_CRYPTO_CFLAGS) \
-		$(AES_CRYPTO_LDADD) $(AES_CRYPTO_LDADD) -o $@ -c $(AES_CRYPTO_SOURCES)  
+		$(AES_CRYPTO_LDADD) $(AES_CRYPTO_LDADD) -o $@ -c $(AES_CRYPTO_SOURCES)
+
+clearkey_platform.o:
+	@echo Building clearkey_platform
+	$(CC) $(AES_CRYPTO_CPPFLAGS) $(AES_CRYPTO_CFLAGS) \
+		$(AES_CRYPTO_LDADD) $(AES_CRYPTO_LDADD) -o $@ -c $(AES_PLATFORM_SOURCES)
 
 .cpp.o:
 	$(CXX) $(CXXFLAGS) $(CDMI_INCLUDES) -c $< -o $@

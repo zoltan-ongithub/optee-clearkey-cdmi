@@ -25,6 +25,7 @@
  * POSSIBILITY OF SUCH DAMAGE.
  */
 #include <stdio.h>
+#include <stdint.h>
 #include "clearkey_platform.h"
 #include "include/uapi/linux/ion.h"
 #include <fcntl.h>
@@ -33,7 +34,10 @@
 #include <sys/mman.h>
 #include <unistd.h>
 #include "logging.h"
+
+#ifdef SDP_PROTOTYPE
 #include "ion/ion.h"
+#endif
 /*
  * Secure memory implementation is platform specified. For example,
  * a library called 'secure sedget library' is applied on platform
